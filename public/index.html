@@ -3527,9 +3527,9 @@ window.MJP_CONVERT = {
     <div style="margin-top: 12px;"></div>
 
     <div class="help-text">
-      ★ URL을 붙여넣으면 시스템이 자동으로 메타정보를 파싱해 공고를 등록합니다.<br>
-      ★ 같은 공고를 3명 이상 제보하면 자동으로 검증된 공고로 승급되어 매칭률이 계산돼요.<br>
-      ★ 회사명과 직무는 자동 추출이 실패할 경우 직접 입력해주세요.
+      ★ 등록 즉시 모든 사용자에게 공개됩니다.<br>
+      ★ 같은 공고를 3명 이상 제보하면 ✓ 검증된 공고로 표시되고 매칭률이 계산돼요.<br>
+      ★ 잘못된 정보는 다른 사용자가 신고하거나 관리자가 삭제할 수 있어요.
     </div>
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="document.getElementById('reportModal').classList.remove('show')">취소</button>
@@ -7222,7 +7222,7 @@ function submitReport() {
   state.jobs.unshift(newJob);
   saveState();
   closeReportModal();
-  showToast(`${ctypeLabel} 공고가 제보 등록되었어요. 검토 후 표시됩니다`);
+  showToast(`${ctypeLabel} 공고가 등록됐어요! 다른 사용자에게도 즉시 보입니다`);
   renderJobs();
 
   // 백엔드 동기화

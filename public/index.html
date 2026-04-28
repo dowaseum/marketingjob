@@ -2946,14 +2946,33 @@ window.MJP_API = {
 // 백엔드 → 프론트 데이터 형식 변환
 window.MJP_CONVERT = {
   jobFromBackend(j) {
+    const company = j.company || '';
+    const title = j.title || '';
+    const fallbackKeyword = encodeURIComponent(company + ' ' + title);
+
+    // external_links가 빈 객체일 수 있으므로 항상 모든 키 보장
+    const inExt = j.external_links || {};
+    const externalLinks = {
+      saramin: inExt.saramin || `https://www.saramin.co.kr/zf_user/search?searchword=${fallbackKeyword}`,
+      jobkorea: inExt.jobkorea || `https://www.jobkorea.co.kr/Search/?stext=${fallbackKeyword}`,
+      jobplanet: inExt.jobplanet || `https://www.jobplanet.co.kr/search?query=${encodeURIComponent(company)}`
+    };
+
+    // 마감일 → 남은 일수 변환 (시드 호환)
+    let deadlineDays = 14;
+    if (j.deadline) {
+      const days = Math.ceil((new Date(j.deadline) - new Date()) / 86400000);
+      deadlineDays = Math.max(0, days);
+    }
+
     return {
       id: j.external_id || `srv_${j.id}`,
       _serverId: j.id,
-      company: j.company,
-      title: j.title,
+      company,
+      title,
       role: j.role || 'content',
       loc: j.loc || 'seoul',
-      deadline: j.deadline,
+      deadline: deadlineDays,
       salary: j.salary || 3500,
       tags: j.tags || [],
       urgent: j.urgent || false,
@@ -2964,16 +2983,25 @@ window.MJP_CONVERT = {
       preferences: j.preferences || [],
       skills: j.skills || [],
       source: j.source === 'user' ? 'user' : (j.source === 'worknet' ? 'worknet' : 'seed'),
-      companyType: j.company_type,
-      companyTypes: j.company_types || (j.company_type ? [j.company_type] : []),
+      companyType: j.company_type || (j.company_types && j.company_types[0]) || 'inhouse',
+      companyTypes: j.company_types || (j.company_type ? [j.company_type] : ['inhouse']),
       reportedBy: j.reported_by || 0,
       isUserReported: j.is_user_reported || false,
       isVerified: j.is_verified || false,
       lastSyncedAt: j.last_synced_at ? new Date(j.last_synced_at).getTime() : Date.now(),
-      externalLinks: j.external_links || {},
-      directUrl: j.direct_url,
-      directUrlSource: j.direct_url_source,
-      companyInfo: j.company_info || null
+      externalLinks,
+      directUrl: j.direct_url || null,
+      directUrlSource: j.direct_url_source || null,
+      companyInfo: j.company_info || {
+        industry: '미확인', employees: '미확인', founded: '미확인', funding: '미확인',
+        rating: 0, reviewCount: 0, jobplanetId: '',
+        culture: '아직 회사 정보가 등록되지 않았어요.',
+        perks: [],
+        interview: '아직 면접 후기가 없어요.'
+      },
+      viewCount: { saramin: 0, jobkorea: 0 },
+      match: null,
+      matchBreakdown: { skill: 0, exp: 0, qual: 0, fit: 0, cond: 0, bonus: 0 }
     };
   },
   feedbackFromBackend(f) {
@@ -4209,12 +4237,16 @@ async function syncFromBackend() {
     }
 
     saveState();
+    // 매칭 점수 재계산
+    if (typeof recomputeAllMatches === 'function' && state.profile) {
+      try { recomputeAllMatches(); } catch(e) { console.warn('[MJP] recomputeMatches:', e); }
+    }
     // 화면이 이미 그려진 상태면 다시 그리기
     if (typeof renderJobs === 'function' && document.getElementById('jobsTab')) {
-      try { renderJobs(); } catch(e) {}
+      try { renderJobs(); } catch(e) { console.warn('[MJP] renderJobs:', e); }
     }
     if (typeof renderFeedback === 'function' && document.getElementById('feedbackTab')) {
-      try { renderFeedback(); } catch(e) {}
+      try { renderFeedback(); } catch(e) { console.warn('[MJP] renderFeedback:', e); }
     }
   } catch (e) {
     console.warn('[MJP] syncFromBackend error:', e);

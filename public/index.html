@@ -4376,9 +4376,9 @@ function renderJobs() {
   wrap.innerHTML = list.map(j => {
     const m = matchClass(j.match || 0);
     const matchDisplay = j.match === null
-      ? `<div class="match-label">검토 중</div>
+      ? `<div class="match-label">매칭 준비중</div>
          <div style="font-size:14px; color:var(--muted-2); font-weight:600; margin-top:4px;">제보 ${j.reportedBy || 1}회</div>
-         <div style="font-size:11px; color:var(--muted); margin-top:6px; line-height:1.4;">3회 이상<br>제보 시 공개</div>`
+         <div style="font-size:11px; color:var(--muted); margin-top:6px; line-height:1.4;">프로필을 등록하면<br>매칭률이 계산돼요</div>`
       : `<div class="match-label">MATCH</div>
          <div class="match-value ${m.text}">${j.match}<span style="font-size:18px;font-weight:600;">%</span></div>
          <div class="match-bar"><div class="match-fill ${m.fill}" style="width:${j.match}%"></div></div>`;
@@ -4392,7 +4392,7 @@ function renderJobs() {
             <span class="badge ${srcBadgeClass(j)}">${srcLabel(j)}</span>
             ${j.urgent ? '<span class="badge badge-urgent">마감임박</span>' : ''}
             ${j.isNew ? '<span class="badge badge-new">NEW</span>' : ''}
-            ${j.isUserReported ? '<span class="badge" style="background:#FEF6E5; color:#A87618;">검토중</span>' : ''}
+            ${j.isVerified && j.reportedBy >= 3 ? '<span class="badge" style="background:#E0F2E9; color:#1F7A4D;">✓ 검증됨</span>' : ''}
           </div>
           <div class="job-title">${j.title}</div>
           <div class="job-meta">
@@ -5560,14 +5560,27 @@ function renderStats() {
 function recomputeAllMatches() {
   if (!state.profile) return;
   state.jobs.forEach(j => {
-    if (j.match === null) return;
     const score = computeProfileMatchScore(j, state.profile);
     if (score !== null) j.match = score;
   });
 }
 
 function computeProfileMatchScore(job, profile) {
-  if (!job.duties || job.duties.length === 0) return job.match;
+  // duties가 없는 공고(사용자 제보)는 간이 매칭으로 대체
+  if (!job.duties || job.duties.length === 0) {
+    let score = 50; // 기본 점수
+    // 관심 직무 일치 시 +25
+    if (profile.interestRoles && profile.interestRoles.includes(job.role)) score += 25;
+    // 거주 지역 일치 시 +15
+    if (profile.loc && profile.loc.includes(job.loc)) score += 15;
+    // 학력 가중치
+    if (profile.education === '4년제' || profile.education === '대학원') score += 5;
+    // 자격증·스킬·경험이 있으면 +5씩 (있으면 어떤 마케터든 도움)
+    if (profile.quals && profile.quals.length > 0) score += 5;
+    if (profile.skills && Object.keys(profile.skills).length >= 3) score += 5;
+    if (profile.experiences && profile.experiences.length > 0) score += 5;
+    return Math.min(100, Math.max(40, score));
+  }
 
   function findSkillIdByText(text) {
     const lower = text.toLowerCase();

@@ -2966,8 +2966,9 @@ window.MJP_CONVERT = {
     }
 
     return {
-      id: j.external_id || `srv_${j.id}`,
+      id: j.id + 1000000,  // 시드 데이터(1~17)와 충돌 방지를 위해 큰 오프셋
       _serverId: j.id,
+      _externalId: j.external_id || null,
       company,
       title,
       role: j.role || 'content',
@@ -4186,7 +4187,11 @@ try {
   const saved = localStorage.getItem('mjp_state');
   if (saved) {
     const parsed = JSON.parse(saved);
-    state.jobs = parsed.jobs || state.jobs;
+    // 문자열 ID(srv_*)를 가진 옛 캐시는 무시 — 백엔드에서 재로딩
+    const hasOldStringIds = parsed.jobs && parsed.jobs.some(j => typeof j.id === 'string' && j.id.startsWith('srv_'));
+    if (!hasOldStringIds) {
+      state.jobs = parsed.jobs || state.jobs;
+    }
     state.tracker = parsed.tracker || state.tracker;
     state.checks = parsed.checks || {};
     state.reviews = parsed.reviews || {};
@@ -7294,11 +7299,11 @@ function submitReport() {
     is_user_reported: true
   }).then(result => {
     if (result && result.job) {
-      // 서버 ID로 교체
+      // 서버 ID로 교체 (숫자 + 오프셋)
       const idx = state.jobs.findIndex(j => j.id === newJob.id);
       if (idx !== -1) {
         state.jobs[idx]._serverId = result.job.id;
-        state.jobs[idx].id = `srv_${result.job.id}`;
+        state.jobs[idx].id = result.job.id + 1000000;
         saveState();
       }
     }
